@@ -8,7 +8,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 
 # Create your views here.
 def show_main(request):
-    products=Product.objects.all()
+    products = Product.objects.all()
 
     context = {
         'app' : 'Chill Kicks',
