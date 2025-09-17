@@ -30,10 +30,10 @@ SECRET_KEY = 'django-insecure-m)&3jz!2cl$z42gv1dl2*!9-7ebdig161ggk@d0z&!&&quwj(y
 PRODUCTION = os.getenv('PRODUCTION', 'False').lower() == 'true'
 DEBUG = True
 
-ALLOWED_HOSTS = ["localhost", "127.0.0.1", "ainur-fadhil-chillkicks.pbp.cs.ui.ac.id"]
+ALLOWED_HOSTS = ["localhost", "127.0.0.1", "ainur-fadhil-footballshop.pbp.cs.ui.ac.id"]
 
 CSRF_TRUSTED_ORIGINS = [
-    "https://ainur-fadhil-chillkicks.pbp.cs.ui.ac.id"
+    "https://ainur-fadhil-footballshop.pbp.cs.ui.ac.id"
 ]
 
 
