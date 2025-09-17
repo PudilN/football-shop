@@ -1,3 +1,5 @@
+ {% extends 'base.html' %}
+ {% block content %}
 <h1>Welcome to {{ app }} </h1>
 <br>
 <br>
@@ -6,3 +8,33 @@
 <br>
 <br>
 <h4>Made by: {{ name }} - {{ class }} </h4>
+
+<a href="{% url 'main:create_prod' %}">
+  <button>+ Add Product</button>
+</a>
+
+<hr>
+
+{% if not products %}
+<p>Belum ada data pada.</p>
+{% else %}
+
+{% for product in products %}
+<div>
+  <h2><a href="{% url 'main:show_products' product.id %}">{{ product.title }}</a></h2>
+
+  {% if product.thumbnail %}
+  <img src="{{ product.thumbnail }}" alt="thumbnail" width="150" height="100">
+  <br />
+  {% endif %}
+
+  <p>{{ news.content|truncatewords:25 }}...</p>
+
+  <p><a href="{% url 'main:show_products' product.id %}"><button>Read More</button></a></p>
+</div>
+
+<hr>
+{% endfor %}
+
+{% endif %}
+ {% endblock %}
