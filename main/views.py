@@ -14,7 +14,7 @@ def show_main(request):
         'app' : 'Chill Kicks',
         'name': 'Ainur Fadhil',
         'class': 'PBP F',
-        'products': products
+        'products': productsdawd
     }
 
     return render(request, "main.html", context)
