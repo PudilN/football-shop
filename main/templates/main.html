@@ -7,11 +7,15 @@
 <br>
 <br>
 <br>
-<h4>Made by: {{ name }} - {{ class }} </h4>
+{% if user.is_authenticated %}
+  <p>Halo, {{ user.username }}!</p>
+{% endif %}
 
 <a href="{% url 'main:create_prod' %}">
   <button>+ Add Product</button>
 </a>
+
+<h5>Sesi terakhir login: {{ last_login }}</h5>
 
 <hr>
 
