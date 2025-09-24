@@ -14,7 +14,7 @@ import datetime
 # Create your views here.
 @login_required(login_url='/login')
 def show_main(request):
-    products = Product.objects.all()
+    filter_type = request.GET.get("filter", "all")
 
     if filter_type == "all":
         products = Product.objects.all()
