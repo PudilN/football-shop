@@ -16,11 +16,17 @@ import datetime
 def show_main(request):
     products = Product.objects.all()
 
+    if filter_type == "all":
+        products = Product.objects.all()
+    else:
+        products = Product.objects.filter(user=request.user)
+
     context = {
         'app' : 'Chill Kicks',
         'name': 'Ainur Fadhil',
         'class': 'PBP F',
-        'products': products
+        'products': products,
+        'last_login': request.COOKIES.get('last_login', 'Never')
     }
 
     return render(request, "main.html", context)
