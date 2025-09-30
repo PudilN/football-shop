@@ -1,6 +1,8 @@
 {% extends 'base.html' %}
+{% load static %}
+
 {% block meta %}
-<title>Add Product - Chill Kicks</title>
+<title>Edit Product - Chill Kicks</title>
 {% endblock meta %}
 
 {% block content %}
@@ -9,9 +11,9 @@
     
     <!-- Header -->
     <div class="text-center mb-8">
-      <h1 class="text-3xl font-bold text-white">Add New Product</h1>
+      <h1 class="text-3xl font-bold text-white">Edit Product</h1>
       <p class="mt-2 text-gray-400">
-        Share your latest sneakers or add new kicks to the Chill Kicks collection
+        Update your sneakers and keep the Chill Kicks collection fresh
       </p>
     </div>
 
@@ -72,7 +74,7 @@
         </a>
         <button type="submit" 
                 class="order-1 sm:order-2 flex-1 bg-green-600 text-white px-6 py-3 rounded-md font-medium hover:bg-green-700 transition-colors">
-          Save Product
+          Update Product
         </button>
       </div>
     </form>

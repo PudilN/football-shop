@@ -1,47 +1,62 @@
- {% extends 'base.html' %}
- {% block content %}
-<h1>Welcome to {{ app }} </h1>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
+{% extends 'base.html' %}
+{% load static %}
+
+{% block meta %}
+<title>Chill Kicks</title>
+{% endblock meta %}
+
+{% block content %}
 {% if user.is_authenticated %}
-  <p>Halo, {{ user.username }}!</p>
+  <p class="text-gray-300">Halo, {{ user.username }}!</p>
 {% endif %}
 
-<a href="{% url 'main:create_prod' %}">
-  <button>+ Add Product</button>
-</a>
-<a href="{% url 'main:logout' %}">
-  <button>Logout</button>
-</a>
+{% include 'navbar.html' %}
 
-<h5>Sesi terakhir login: {{ last_login }}</h5>
+<div class="bg-gray-900 w-full pt-16 min-h-screen">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    
+    <!-- Header -->
+    <div class="mb-8">
+      <h1 class="text-3xl font-bold text-white mb-2">Latest Products</h1>
+      <p class="text-gray-400">Discover and manage the newest products in Chill Kicks</p>
+    </div>
 
-<hr>
+    <!-- Filter -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8 bg-gray-800 rounded-lg border border-gray-700 p-4">
+      <div class="flex space-x-3 mb-4 sm:mb-0">
+        <a href="?" class="{% if request.GET.filter == 'all' or not request.GET.filter %} bg-green-600 text-white{% else %} bg-gray-700 text-gray-300 border border-gray-600{% endif %} px-4 py-2 rounded-md font-medium transition-colors hover:bg-green-600 hover:text-white">
+          All Products
+        </a>
+        <a href="?filter=my" class="{% if request.GET.filter == 'my' %} bg-green-600 text-white{% else %} bg-gray-700 text-gray-300 border border-gray-600{% endif %} px-4 py-2 rounded-md font-medium transition-colors hover:bg-green-600 hover:text-white">
+          My Products
+        </a>
+      </div>
+      {% if user.is_authenticated %}
+        <div class="text-sm text-gray-400">
+          Last login: {{ last_login }}
+        </div>
+      {% endif %}
+    </div>
 
-{% if not products %}
-<p>Belum ada data pada.</p>
-{% else %}
-
-{% for product in products %}
-<div>
-  <h2><a href="{% url 'main:show_products' product.id %}">{{ product.title }}</a></h2>
-
-  {% if product.thumbnail %}
-  <img src="{{ product.thumbnail }}" alt="thumbnail" width="150" height="100">
-  <br />
-  {% endif %}
-
-  <p>{{ news.content|truncatewords:25 }}...</p>
-
-  <p><a href="{% url 'main:show_products' product.id %}"><button>Read More</button></a></p>
+    <!-- Product List -->
+    {% if not products %}
+      <div class="bg-gray-800 rounded-lg border border-gray-700 p-12 text-center">
+        <div class="w-32 h-32 mx-auto mb-4">
+          <img src="{% static 'image/no-products.png' %}" alt="No products available" class="w-full h-full object-contain opacity-80">
+        </div>
+        <h3 class="text-lg font-medium text-white mb-2">No products found</h3>
+        <p class="text-gray-400 mb-6">Be the first to add a product to the catalog.</p>
+        <a href="{% url 'main:create_prod' %}" class="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors">
+          Create Product
+        </a>
+      </div>
+    {% else %}
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% for product in products %}
+          {% include 'card_products.html' with product=product %}
+        {% endfor %}
+      </div>
+    {% endif %}
+  </div>
 </div>
-
-<hr>
-{% endfor %}
-
-{% endif %}
- {% endblock %}
+{% endblock content %}

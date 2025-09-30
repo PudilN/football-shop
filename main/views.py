@@ -45,7 +45,9 @@ def create_prod(request):
     form = ProductForm(request.POST or None)
 
     if form.is_valid() and request.method == "POST":
-        form.save()
+        prod_entry = form.save(commit=False)
+        prod_entry.user = request.user  # set user dulu
+        prod_entry.save()
         return redirect('main:show_main')
 
     context = {'form': form}
@@ -110,3 +112,22 @@ def logout_user(request):
     response = HttpResponseRedirect(reverse('main:login'))
     response.delete_cookie('last_login')
     return response
+
+@login_required(login_url='/login')
+def edit_products(request, id):
+    prod = get_object_or_404(Product, pk=id)
+    form = ProductForm(request.POST or None, instance=prod)
+
+    if form.is_valid() and request.method == 'POST':
+        prod_entry = form.save(commit=False)
+        prod_entry.user = request.user  # pastikan user tetap sama
+        prod_entry.save()
+        return redirect('main:show_main')
+
+    context = {'form': form}
+    return render(request, "edit_prod.html", context)
+
+def delete_products(request, id):
+    news = get_object_or_404(Product, pk=id)
+    news.delete()
+    return HttpResponseRedirect(reverse('main:show_main'))
