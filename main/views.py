@@ -4,12 +4,14 @@ from django.contrib.auth import authenticate, login, logout
 from django.shortcuts import render, redirect, get_object_or_404
 from django.shortcuts import render
 from django.contrib import messages
-from django.http import HttpResponse, HttpResponseRedirect
+from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.core import serializers
 from main.models import Product
 from django.urls import reverse
 from main.forms import ProductForm
 import datetime
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
 
 # Create your views here.
 @login_required(login_url='/login')
@@ -35,7 +37,8 @@ def show_products(request, id):
     product = get_object_or_404(Product, pk=id)
 
     context = {
-        'product': product
+        'product': product,
+        'product_id': product.id
     }
 
     return render(request, "prod_detail.html", context)
@@ -54,30 +57,62 @@ def create_prod(request):
     return render(request, "add_prod.html", context)
 
 def show_xml(request):
-     news_list = Product.objects.all()
-     xml_data = serializers.serialize("xml", news_list)
+     products = Product.objects.all()
+     xml_data = serializers.serialize("xml", products)
      return HttpResponse(xml_data, content_type="application/xml")
 
 def show_json(request):
-    news_list = Product.objects.all()
-    json_data = serializers.serialize("json", news_list)
-    return HttpResponse(json_data, content_type="application/json")
+    product_list = Product.objects.all()
+    data = [
+        {
+            'id': str(product.id),
+            'user_id': product.user.id if product.user else None,
+            'name': product.name,
+            'price': product.price,
+            'description': product.description,
+            'thumbnail': product.thumbnail,
+            'category': product.category,
+            'is_featured': product.is_featured,
+            'brand': product.brand,
+            'size': product.size,
+            'color': product.color,
+            'release_date': product.release_date.isoformat() if product.release_date else None,
+            'reviews': product.reviews,
+        }
+        for product in product_list
+    ]
+    return JsonResponse(data, safe=False)
 
-def show_xml_by_id(request, news_id):
+def show_xml_by_id(request, product_id):
    try:
-       news_item = Product.objects.filter(pk=news_id)
-       xml_data = serializers.serialize("xml", news_item)
+       product_item = Product.objects.filter(pk=product_id)
+       xml_data = serializers.serialize("xml", product_item)
        return HttpResponse(xml_data, content_type="application/xml")
    except Product.DoesNotExist:
        return HttpResponse(status=404)
 
-def show_json_by_id(request, news_id):
-   try:
-       news_item = Product.objects.get(pk=news_id)
-       json_data = serializers.serialize("json", [news_item])
-       return HttpResponse(json_data, content_type="application/json")
-   except Product.DoesNotExist:
-       return HttpResponse(status=404)
+def show_json_by_id(request, product_id):
+    try:
+        product = Product.objects.select_related('user').get(pk=product_id)
+        data = {
+            'id': str(product.id),
+            'name': product.name,
+            'price': product.price,
+            'description': product.description,
+            'thumbnail': product.thumbnail,
+            'category': product.category,
+            'is_featured': product.is_featured,
+            'brand': product.brand,
+            'size': product.size,
+            'color': product.color,
+            'release_date': product.release_date.isoformat() if product.release_date else None,
+            'reviews': product.reviews,
+            'user_id': product.user_id,
+            'user_username': product.user.username if product.user_id else None,
+        }
+        return JsonResponse(data)
+    except Product.DoesNotExist:
+        return JsonResponse({'detail': 'Not found'}, status=404)
    
 def register(request):
     form = UserCreationForm()
@@ -131,3 +166,37 @@ def delete_products(request, id):
     news = get_object_or_404(Product, pk=id)
     news.delete()
     return HttpResponseRedirect(reverse('main:show_main'))
+
+@csrf_exempt
+@require_POST
+def add_product_ajax(request):
+    name = request.POST.get("name")
+    description = request.POST.get("description")
+    price = request.POST.get("price")
+    category = request.POST.get("category")
+    thumbnail = request.POST.get("thumbnail")
+    brand = request.POST.get("brand")
+    size = request.POST.get("size")
+    color = request.POST.get("color")
+    is_featured = request.POST.get("is_featured") == 'on'
+
+    new_product = Product(
+        name=name,
+        description=description,
+        price=price,
+        category=category,
+        thumbnail=thumbnail,
+        brand=brand,
+        size=size,
+        color=color,
+        is_featured=is_featured,
+        user=request.user,
+    )
+    new_product.save()
+
+    return JsonResponse({
+        "status": "success",
+        "id": str(new_product.id),
+        "name": new_product.name,
+        "price": new_product.price
+    }, status=201)

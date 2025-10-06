@@ -6,28 +6,34 @@
 {% endblock meta %}
 
 {% block content %}
-{% if user.is_authenticated %}
-  <p class="text-gray-300">Halo, {{ user.username }}!</p>
-{% endif %}
-
 {% include 'navbar.html' %}
 
-<div class="bg-gray-900 w-full pt-16 min-h-screen">
+<div class="bg-gray-900 w-full pt-16 min-h-screen text-gray-100">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    
-    <!-- Header -->
+
+    <!-- Header Section -->
     <div class="mb-8">
       <h1 class="text-3xl font-bold text-white mb-2">Latest Products</h1>
-      <p class="text-gray-400">Discover and manage the newest products in Chill Kicks</p>
+      <p class="text-gray-400">Discover the newest arrivals in Chill Kicks</p>
     </div>
+    <button onclick="showModal()" 
+      class="inline-flex items-center px-4 py-2 bg-green-600 text-white font-semibold rounded-md 
+            hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 
+            transition-colors mb-6">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+      </svg>
+      Create News by AJAX
+    </button>
 
-    <!-- Filter -->
+
+    <!-- Filter Section -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8 bg-gray-800 rounded-lg border border-gray-700 p-4">
       <div class="flex space-x-3 mb-4 sm:mb-0">
-        <a href="?" class="{% if request.GET.filter == 'all' or not request.GET.filter %} bg-green-600 text-white{% else %} bg-gray-700 text-gray-300 border border-gray-600{% endif %} px-4 py-2 rounded-md font-medium transition-colors hover:bg-green-600 hover:text-white">
+        <a id="filter-all" class="bg-green-600 text-white px-4 py-2 rounded-md font-medium transition-colors hover:bg-green-700">
           All Products
         </a>
-        <a href="?filter=my" class="{% if request.GET.filter == 'my' %} bg-green-600 text-white{% else %} bg-gray-700 text-gray-300 border border-gray-600{% endif %} px-4 py-2 rounded-md font-medium transition-colors hover:bg-green-600 hover:text-white">
+        <a id="filter-my" class="bg-gray-700 text-gray-300 border border-gray-600 px-4 py-2 rounded-md font-medium transition-colors hover:bg-green-600 hover:text-white">
           My Products
         </a>
       </div>
@@ -38,25 +44,231 @@
       {% endif %}
     </div>
 
-    <!-- Product List -->
-    {% if not products %}
-      <div class="bg-gray-800 rounded-lg border border-gray-700 p-12 text-center">
-        <div class="w-32 h-32 mx-auto mb-4">
-          <img src="{% static 'image/no-products.png' %}" alt="No products available" class="w-full h-full object-contain opacity-80">
-        </div>
-        <h3 class="text-lg font-medium text-white mb-2">No products found</h3>
-        <p class="text-gray-400 mb-6">Be the first to add a product to the catalog.</p>
-        <a href="{% url 'main:create_prod' %}" class="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors">
-          Create Product
-        </a>
+    <!-- Loading State -->
+    <div id="loading" class="bg-gray-800 rounded-lg border border-gray-700 p-12 text-center hidden">
+      <svg class="animate-spin h-8 w-8 text-green-500 inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+      </svg>
+      <p class="text-gray-400 mt-3">Loading products...</p>
+    </div>
+
+    <!-- Error State -->
+    <div id="error" class="hidden text-center text-red-400 font-medium"></div>
+
+    <!-- Product Grid -->
+    <div id="grid" class="hidden grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+
+    <!-- Empty State -->
+    <div id="empty" class="bg-gray-800 rounded-lg border border-gray-700 p-12 text-center hidden">
+      <div class="w-32 h-32 mx-auto mb-4">
+        <img src="{% static 'image/no-products.png' %}" alt="No products available" class="w-full h-full object-contain opacity-80">
       </div>
-    {% else %}
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {% for product in products %}
-          {% include 'card_products.html' with product=product %}
-        {% endfor %}
-      </div>
-    {% endif %}
+      <h3 class="text-lg font-medium text-white mb-2">No products found</h3>
+      <p class="text-gray-400 mb-6">Be the first to add a product to the catalog.</p>
+      <a href="{% url 'main:create_prod' %}" class="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors">
+        Create Product
+      </a>
+    </div>
   </div>
 </div>
+
+<!-- JS for AJAX -->
+<script>
+// Configuration
+const PRODUCT_API_ENDPOINT = "{% url 'main:show_json' %}";
+const CURRENT_USER_ID = "{{ user.id|default_if_none:'' }}";
+
+// DOM Elements
+const loadingSpinner = document.getElementById('loading');
+const errorMessage = document.getElementById('error');
+const emptyStateDisplay = document.getElementById('empty');
+const productGridContainer = document.getElementById('grid');
+const showAllProductsButton = document.getElementById('filter-all');
+const showMyProductsButton = document.getElementById('filter-my');
+
+// State Variables
+let activeFilter = 'all';
+let allProductData = [];
+
+// Update filter button appearance
+function updateFilterButtonsAppearance() {
+  if (!showAllProductsButton || !showMyProductsButton) return;
+  
+  if (activeFilter === 'all') {
+    showAllProductsButton.className = 'bg-green-600 text-white px-4 py-2 rounded-md font-medium transition-colors hover:bg-green-700';
+    showMyProductsButton.className = 'bg-white text-gray-700 border border-gray-300 px-4 py-2 rounded-md font-medium transition-colors hover:bg-green-600 hover:text-white';
+  } else {
+    showMyProductsButton.className = 'bg-green-600 text-white px-4 py-2 rounded-md font-medium transition-colors hover:bg-green-700';
+    showAllProductsButton.className = 'bg-white text-gray-700 border border-gray-300 px-4 py-2 rounded-md font-medium transition-colors hover:bg-green-600 hover:text-white';
+  }
+}
+
+// Show/hide page sections
+function displayPageSection({ showLoading = false, showError = false, showEmpty = false, showGrid = false }) {
+  loadingSpinner.classList.toggle('hidden', !showLoading);
+  errorMessage.classList.toggle('hidden', !showError);
+  emptyStateDisplay.classList.toggle('hidden', !showEmpty);
+  productGridContainer.classList.toggle('hidden', !showGrid);
+  
+  if (showGrid) {
+    productGridContainer.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6';
+  }
+}
+
+// Get readable category name
+function getReadableCategoryName(categoryCode) {
+  const categoryMapping = {
+    sepak_bola: 'Sepak Bola',
+    jersey: 'Jersey',
+    sepatu: 'Sepatu',
+    pelindung: 'Pelindung',
+    lainnya: 'Lainnya',
+  };
+  return categoryMapping[categoryCode] || categoryCode;
+}
+
+// Create product card element
+function buildProductCardElement(product) {
+  const articleElement = document.createElement('article');
+  articleElement.className = `
+    bg-gray-800 border border-gray-700 rounded-lg overflow-hidden 
+    hover:shadow-xl hover:border-green-600 transition-all duration-300 
+    flex flex-col h-full
+  `;
+
+  const detailLink = `{% url 'main:show_products' '00000000-0000-0000-0000-000000000000' %}`.replace('00000000-0000-0000-0000-000000000000', product.id);
+  const editLink = `{% url 'main:edit_prod' '00000000-0000-0000-0000-000000000000' %}`.replace('00000000-0000-0000-0000-000000000000', product.id);
+  const deleteLink = `{% url 'main:delete_prod' '00000000-0000-0000-0000-000000000000' %}`.replace('00000000-0000-0000-0000-000000000000', product.id);
+
+  const formattedDate = product.release_date
+    ? new Date(product.release_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+    : '—';
+
+  const categoryLabel = getReadableCategoryName(product.category);
+  const isFeatured = product.is_featured;
+  const hasManyReviews = product.reviews > 10;
+
+  const thumbnailHtml = product.thumbnail
+    ? `<img src='${product.thumbnail}' alt='${product.name}' class='w-full h-full object-cover'>`
+    : `<div class='w-full h-full bg-gray-700 flex items-center justify-center text-gray-400 text-sm'>No Image</div>`;
+
+  const featuredBadge = isFeatured 
+    ? `<span class='inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-yellow-500 text-black'>Featured</span>` 
+    : '';
+  const reviewBadge = hasManyReviews 
+    ? `<span class='inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-600 text-white'>Popular</span>` 
+    : '';
+
+  const editDeleteButtons = CURRENT_USER_ID && Number(CURRENT_USER_ID) === Number(product.user_id)
+    ? `<div class='flex space-x-3 text-sm'>
+        <a href='${editLink}' class='text-gray-300 hover:text-green-400 transition-colors'>Edit</a>
+        <a href='${deleteLink}' class='text-red-400 hover:text-red-500 transition-colors' onclick='return confirm("Are you sure you want to delete this product?")'>Delete</a>
+      </div>`
+    : '';
+
+  const completeCardHtml = `
+    <div class="aspect-[16/9] relative overflow-hidden">
+      ${thumbnailHtml}
+      <div class="absolute top-3 left-3">
+        <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-green-600 text-white">${categoryLabel}</span>
+      </div>
+      <div class="absolute top-3 right-3 flex space-x-2">
+        ${featuredBadge}
+        ${reviewBadge}
+      </div>
+    </div>
+    <div class="p-5 flex flex-col flex-1">
+      <div class="flex items-center text-sm text-gray-400 mb-3">
+        <time>${formattedDate}</time>
+        <span class="mx-2">•</span>
+        <span>${product.reviews} reviews</span>
+      </div>
+      <h3 class="text-lg font-semibold text-white mb-3 leading-tight line-clamp-2">
+        <a href="${detailLink}" class="hover:text-green-400 transition-colors">${product.name}</a>
+      </h3>
+      <p class="text-gray-300 text-sm leading-relaxed line-clamp-3 mb-4">${product.description}</p>
+      <div class="mt-auto pt-4 border-t border-gray-700 flex items-center justify-between">
+        <span class="text-green-400 font-semibold text-sm">Rp ${product.price.toLocaleString()}</span>
+        ${editDeleteButtons}
+      </div>
+    </div>
+  `;
+
+  articleElement.innerHTML = completeCardHtml;
+  return articleElement;
+}
+
+
+// Render all product cards
+function renderAllProductCards(products) {
+  productGridContainer.innerHTML = '';
+  products.forEach(product => {
+    const cardElement = buildProductCardElement(product);
+    productGridContainer.appendChild(cardElement);
+  });
+}
+
+// Filter and display products
+function filterAndDisplayProducts() {
+  updateFilterButtonsAppearance();
+  
+  const filteredProducts = activeFilter === 'all'
+    ? allProductData
+    : allProductData.filter(p => Number(p.user_id) === Number(CURRENT_USER_ID));
+  
+  if (filteredProducts.length === 0) {
+    displayPageSection({ showEmpty: true });
+  } else {
+    renderAllProductCards(filteredProducts);
+    displayPageSection({ showGrid: true });
+  }
+}
+
+// Fetch product data from server
+async function fetchProductsFromServer() {
+  try {
+    displayPageSection({ showLoading: true });
+    
+    const response = await fetch(PRODUCT_API_ENDPOINT, {
+      headers: { 'Accept': 'application/json' },
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch product data from server');
+    }
+
+    const productData = await response.json();
+    allProductData = productData || [];
+    
+    filterAndDisplayProducts();
+  } catch (error) {
+    console.error('Error loading products:', error);
+    displayPageSection({ showError: true });
+  }
+}
+
+// Event handlers
+function handleShowAllProductsClick() {
+  activeFilter = 'all';
+  filterAndDisplayProducts();
+}
+
+function handleShowMyProductsClick() {
+  activeFilter = 'my';
+  filterAndDisplayProducts();
+}
+
+// Initialize page
+function initializeProductPage() {
+  if (showAllProductsButton) showAllProductsButton.addEventListener('click', handleShowAllProductsClick);
+  if (showMyProductsButton) showMyProductsButton.addEventListener('click', handleShowMyProductsClick);
+  
+  fetchProductsFromServer();
+}
+
+// Start application
+initializeProductPage();
+</script>
+
 {% endblock content %}
