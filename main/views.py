@@ -12,6 +12,11 @@ from main.forms import ProductForm
 import datetime
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
+import requests
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.html import strip_tags
+import json
+from django.http import JsonResponse
 
 # Create your views here.
 @login_required(login_url='/login')
@@ -62,7 +67,7 @@ def show_xml(request):
      return HttpResponse(xml_data, content_type="application/xml")
 
 def show_json(request):
-    product_list = Product.objects.all()
+    product_list = Product.objects.filter(user=request.user)
     data = [
         {
             'id': str(product.id),
@@ -200,3 +205,54 @@ def add_product_ajax(request):
         "name": new_product.name,
         "price": new_product.price
     }, status=201)
+
+def proxy_image(request):
+    image_url = request.GET.get('url')
+    if not image_url:
+        return HttpResponse('No URL provided', status=400)
+
+    try:
+        # Fetch image from external source
+        response = requests.get(image_url, timeout=10)
+        response.raise_for_status()
+
+        # Return the image with proper content type
+        return HttpResponse(
+            response.content,
+            content_type=response.headers.get('Content-Type', 'image/jpeg')
+        )
+    except requests.RequestException as e:
+        return HttpResponse(f'Error fetching image: {str(e)}', status=500)
+
+@csrf_exempt
+def create_flutter(request):
+    if request.method != 'POST':
+        return JsonResponse({"status": "error", "message": "Invalid method"}, status=405)
+
+    try:
+        data = json.loads(request.body)
+
+        name = strip_tags(data.get("name", ""))
+        price = data.get("price", 0)
+        description = strip_tags(data.get("description", ""))
+        category = data.get("category", "sneakers")
+        thumbnail = data.get("thumbnail", "")
+        is_featured = data.get("is_featured", False)
+
+        user = request.user if request.user.is_authenticated else None
+
+        new_product = Product(
+            name=name,
+            price=price,
+            description=description,
+            category=category,
+            thumbnail=thumbnail,
+            is_featured=is_featured,
+            user=user,
+        )
+        new_product.save()
+
+        return JsonResponse({"status": "success", "id": str(new_product.id)}, status=201)
+
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": str(e)}, status=400)
